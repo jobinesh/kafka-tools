@@ -1,5 +1,6 @@
 package com.jobinesh.kafka;
 
+import com.jobinesh.kafka.message.SimpleMessage;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,38 +12,36 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 
-public class Task implements Runnable {
+public class ConsumerRecordProcessor<K, V extends SimpleMessage> implements Runnable, Retriable<K, V> {
 
-    private final List<ConsumerRecord<String, String>> records;
-
+    private final List<ConsumerRecord<K, V>> records;
     private volatile boolean stopped = false;
-
     private volatile boolean started = false;
-
     private volatile boolean finished = false;
-
     private final CompletableFuture<Long> completion = new CompletableFuture<>();
-
     private final ReentrantLock startStopLock = new ReentrantLock();
-
     private final AtomicLong currentOffset = new AtomicLong();
+    private final static int MAX_RETRIES = 5;
+    private ConsumerErrorHandler<K, V> errorHandler;
+    private Logger log = LoggerFactory.getLogger(ConsumerRecordProcessor.class);
 
-    private Logger log = LoggerFactory.getLogger(Task.class);
-
-    public Task(List<ConsumerRecord<String, String>> records) {
+    public ConsumerRecordProcessor(List<ConsumerRecord<K, V>> records) {
         this.records = records;
     }
 
+    public void setErrorHandler(ConsumerErrorHandler<K, V> errorHandler) {
+        this.errorHandler = errorHandler;
+    }
 
     public void run() {
         startStopLock.lock();
-        if (stopped){
+        if (stopped) {
             return;
         }
         started = true;
         startStopLock.unlock();
 
-        for (ConsumerRecord<String, String> record : records) {
+        for (ConsumerRecord<K, V> record : records) {
             if (stopped)
                 break;
             // process record here and make sure you catch all exceptions;
@@ -53,10 +52,35 @@ public class Task implements Runnable {
         completion.complete(currentOffset.get());
     }
 
-    public void processRecord(ConsumerRecord<String, String> record){
-        System.out.println("----------------ConsumerRecord------------");
-        System.out.println(record);
+    public void processRecord(ConsumerRecord<K, V> record) {
+
+        log.info("-------------ProcessRecord------------");
+        //Add logic for processing the record.
+        //Below code simulates a task that runs in async mode.
+        CompletableFuture
+                .runAsync(() -> someAsyncTask(record))
+                .exceptionally(exception -> {
+                    //  Re-publish the message to the topic if the retries is within threshold
+                    int retries = record.value().getRetryCount();
+                    if (MAX_RETRIES < retries && errorHandler != null) {
+                        record.value().setRetryCount(retries + 1);
+                        errorHandler.retry(record.topic(), record.key(), record.value());
+                    }
+                    return null;
+                });
+
     }
+
+    private void someAsyncTask(ConsumerRecord<K, V> record) {
+        log.info("----------------Async processing of ConsumerRecord------------");
+        log.info(record.toString());
+    }
+
+    @Override
+    public void retry(String topic, K key, V message) {
+
+    }
+
     public long getCurrentOffset() {
         return currentOffset.get();
     }
