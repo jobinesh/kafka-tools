@@ -1,4 +1,4 @@
-package com.jobinesh.kafka.message;
+package com.jobinesh.kafka.client.message;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.common.errors.SerializationException;

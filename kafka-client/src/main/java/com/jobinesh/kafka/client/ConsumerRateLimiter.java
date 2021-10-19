@@ -1,4 +1,4 @@
-package com.jobinesh.kafka;
+package com.jobinesh.kafka.client;
 
 import java.util.concurrent.atomic.LongAdder;
 

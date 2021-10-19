@@ -1,6 +1,6 @@
-package com.jobinesh.kafka;
+package com.jobinesh.kafka.client;
 
-import com.jobinesh.kafka.message.SimpleMessage;
+import com.jobinesh.kafka.client.message.SimpleMessage;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 
-public class ConsumerRecordProcessor<K, V extends SimpleMessage> implements Runnable, Retriable<K, V> {
+public class ConsumerRecordProcessor<K, V extends SimpleMessage> implements Runnable {
 
     private final List<ConsumerRecord<K, V>> records;
     private volatile boolean stopped = false;
@@ -21,7 +21,6 @@ public class ConsumerRecordProcessor<K, V extends SimpleMessage> implements Runn
     private final CompletableFuture<Long> completion = new CompletableFuture<>();
     private final ReentrantLock startStopLock = new ReentrantLock();
     private final AtomicLong currentOffset = new AtomicLong();
-    private final static int MAX_RETRIES = 5;
     private ConsumerErrorHandler<K, V> errorHandler;
     private Logger log = LoggerFactory.getLogger(ConsumerRecordProcessor.class);
 
@@ -61,10 +60,8 @@ public class ConsumerRecordProcessor<K, V extends SimpleMessage> implements Runn
                 .runAsync(() -> someAsyncTask(record))
                 .exceptionally(exception -> {
                     //  Re-publish the message to the topic if the retries is within threshold
-                    int retries = record.value().getRetryCount();
-                    if (MAX_RETRIES < retries && errorHandler != null) {
-                        record.value().setRetryCount(retries + 1);
-                        errorHandler.retry(record.topic(), record.key(), record.value());
+                    if (errorHandler != null) {
+                        errorHandler.retry(record);
                     }
                     return null;
                 });
@@ -76,10 +73,6 @@ public class ConsumerRecordProcessor<K, V extends SimpleMessage> implements Runn
         log.info(record.toString());
     }
 
-    @Override
-    public void retry(String topic, K key, V message) {
-
-    }
 
     public long getCurrentOffset() {
         return currentOffset.get();

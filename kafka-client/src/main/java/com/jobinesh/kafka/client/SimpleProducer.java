@@ -1,6 +1,6 @@
-package com.jobinesh.kafka;
+package com.jobinesh.kafka.client;
 
-import com.jobinesh.kafka.message.SimpleMessage;
+import com.jobinesh.kafka.client.message.SimpleMessage;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 

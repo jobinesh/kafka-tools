@@ -1,6 +1,6 @@
-package com.jobinesh.kafka;
+package com.jobinesh.kafka.client;
 
-import com.jobinesh.kafka.message.SimpleMessage;
+import com.jobinesh.kafka.client.message.SimpleMessage;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
